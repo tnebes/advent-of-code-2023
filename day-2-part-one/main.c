@@ -30,13 +30,6 @@ typedef struct
    Turn *turns;
 } Game;
 
-enum colour
-{
-   Red,
-   Green,
-   Blue
-};
-
 int isDigit(const char character)
 {
    return (character >= '0' && character <= '9');
@@ -269,7 +262,7 @@ int validateGame(Game *game)
    return 1;
 }
 
-int getIdFromPossibleGame(const char input[], const int inputLength, const char colours[], const int coloursSize)
+int getIdFromPossibleGame(const char input[], const int inputLength)
 {
    if (inputLength < 2)
    {
@@ -320,9 +313,6 @@ int main(int argc, char *argv[])
       return 1;
    }
 
-   const char *colours[] = {RED, GREEN, BLUE};
-   const int coloursSize = 3;
-
    char filePath[256];
    strncpy(filePath, argv[1], sizeof(filePath));
    filePath[sizeof(filePath) - 1] = '\0';
@@ -340,7 +330,7 @@ int main(int argc, char *argv[])
    while (fgets(line, sizeof(line), file))
    {
       const int lineLength = strlen(line);
-      sum += getIdFromPossibleGame(line, lineLength, *colours, coloursSize);
+      sum += getIdFromPossibleGame(line, lineLength);
    }
 
    printf("Sum is: %d", sum);
