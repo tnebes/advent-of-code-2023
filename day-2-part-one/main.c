@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define RED "red"
 #define GREEN "green"
@@ -14,6 +15,7 @@
 #define MAX_BLUE 14
 
 #define MAX_TURNS_IN_GAME 16
+#define MAX_COLOURS_IN_TURN 3
 
 typedef struct
 {
@@ -25,7 +27,7 @@ typedef struct
 typedef struct
 {
    int id;
-   Turn turns[];
+   Turn *turns;
 } Game;
 
 enum colour
@@ -38,6 +40,11 @@ enum colour
 int isDigit(const char character)
 {
    return (character >= '0' && character <= '9');
+}
+
+int isJunk(const char character)
+{
+   return (character == ' ' || character == ',');
 }
 
 int isEnd(const char character)
@@ -89,9 +96,28 @@ int getPositionOfCharacter(const char input[], const int start, const int end, c
    return -1;
 }
 
-void updateTurnColor(Turn *turn, const char color, const int numberOfThrows)
+int skipCharactersForColour(const char colour)
 {
-   switch (color)
+   switch (colour)
+   {
+   case 'r':
+      return RED_LENGTH;
+      break;
+   case 'g':
+      return GREEN_LENGTH;
+      break;
+   case 'b':
+      return BLUE_LENGTH;
+      break;
+   default:
+      printf("Unrecognized color %c", colour);
+      exit(1);
+   }
+}
+
+void updateTurnColour(Turn *turn, const char colour, const int numberOfThrows)
+{
+   switch (colour)
    {
    case 'r':
       turn->red = numberOfThrows;
@@ -103,74 +129,186 @@ void updateTurnColor(Turn *turn, const char color, const int numberOfThrows)
       turn->blue = numberOfThrows;
       break;
    default:
-      printf("Unrecognized color %c", color);
+      printf("Unrecognized color %c", colour);
       break;
    }
 }
 
-int getIdFromPossibleGame(const char input[], const int inputLength, const char *colours[], const int coloursSize)
+int getTurnLength(const char *input, const int start)
+{
+   int currentCharacterPosition = start;
+   int length = 1;
+   char currentCharacter = input[currentCharacterPosition];
+
+   while (currentCharacter != '\0')
+   {
+      length++;
+      currentCharacter = input[++currentCharacterPosition];
+   }
+
+   return length;
+}
+
+char *getTurnInformation(const char *input, const int start)
+{
+   int turnSize = getTurnLength(input, start);
+
+   char *turnsInformation = (char *)malloc((turnSize + 1));
+
+   if (turnsInformation == NULL)
+   {
+      printf("Could not allocate memory for %s\n", input);
+      exit(1);
+   }
+
+   for (int i = start, j = 0; j < turnSize; i++, j++)
+   {
+      turnsInformation[j] = input[i];
+   }
+   turnsInformation[turnSize] = '\0';
+
+   return turnsInformation;
+}
+
+void parseTurns(Game *game, char *turnsInformation, int turnsLength)
+{
+   int parsedTurns = 0;
+   int currentCharacterPosition = 0;
+   char currentCharacter = turnsInformation[currentCharacterPosition];
+   int numberOfThrows = 0;
+
+   while (currentCharacter != '\0')
+   {
+      if (isJunk(currentCharacter))
+      {
+         currentCharacter = turnsInformation[++currentCharacterPosition];
+         continue;
+      }
+
+      int foundColours = 0;
+
+      while (1)
+      {
+         if (currentCharacterPosition >= turnsLength || foundColours >= MAX_COLOURS_IN_TURN || currentCharacter == '\0')
+         {
+            return;
+         }
+         if (isDigit(currentCharacter))
+         {
+            numberOfThrows = getFirstIntFromInput(turnsInformation, currentCharacterPosition, turnsLength);
+            while (isDigit(currentCharacter))
+            {
+               currentCharacter = turnsInformation[++currentCharacterPosition];
+            }
+         }
+         else
+         {
+            currentCharacter = turnsInformation[++currentCharacterPosition];
+            continue;
+         }
+
+         while (isJunk(currentCharacter))
+         {
+            currentCharacter = turnsInformation[++currentCharacterPosition];
+         }
+
+         updateTurnColour(&game->turns[parsedTurns], currentCharacter, numberOfThrows);
+         numberOfThrows = 0;
+         foundColours++;
+         currentCharacterPosition += skipCharactersForColour(currentCharacter);
+         currentCharacter = turnsInformation[currentCharacterPosition];
+
+         if (isEnd(currentCharacter))
+         {
+            parsedTurns++;
+            foundColours = 0;
+         }
+         continue;
+      }
+   }
+}
+
+Game *initialiseGame()
+{
+   Game *game = malloc(sizeof(Game));
+
+   if (game == NULL)
+   {
+      printf("Failed to allocate memory for Game\n");
+      exit(1);
+   }
+
+   game->id = 0;
+   game->turns = (Turn *)malloc(MAX_TURNS_IN_GAME * sizeof(Turn));
+   for (int i = 0; i < MAX_TURNS_IN_GAME; i++)
+   {
+      Turn *turn = &(game->turns[i]);
+      turn->red = 0;
+      turn->blue = 0;
+      turn->green = 0;
+   }
+   return game;
+}
+
+void deinitialiseGame(Game *game)
+{
+   free(game->turns);
+   free(game);
+}
+
+int validateGame(Game *game)
+{
+   Turn *turns = game->turns;
+   for (int i = 0; i < MAX_TURNS_IN_GAME; i++)
+   {
+      if (turns[i].red > MAX_RED || turns[i].blue > MAX_BLUE || turns[i].green > MAX_GREEN)
+      {
+         return 0;
+      }
+   }
+   return 1;
+}
+
+int getIdFromPossibleGame(const char input[], const int inputLength, const char colours[], const int coloursSize)
 {
    if (inputLength < 2)
    {
       return 0;
    }
 
-   Game game;
-   Turn turns[MAX_TURNS_IN_GAME];
-   int currentCharacterPosition = 0;
-   int currentTurn = 0;
-   char currentCharacter = input[currentCharacterPosition];
+   Game *game = initialiseGame();
 
-   game.id = getFirstIntFromInput(input, 0, inputLength);
-   int startPosition, currentPosition = getPositionOfCharacter(input, 0, inputLength, ':');
-   if (startPosition < 0)
+   if (game->turns == NULL)
+   {
+      printf("Could not allocate memory for game.turns\n");
+      exit(1);
+   }
+
+   game->id = getFirstIntFromInput(input, 0, inputLength);
+   int currentPosition = getPositionOfCharacter(input, 0, inputLength, ':') + 1;
+   if (currentPosition < 0)
    {
       printf("Input was invalid. %s", input);
       return 0;
    }
 
-   // while (currentCharacter != '\0')
-   // {
-   //    currentCharacter = input[currentPosition++];
-   //    if (!isDigit(currentCharacter))
-   //    {
-   //       continue;
-   //    }
+   char *turnsInformation = getTurnInformation(input, currentPosition);
+   if (turnsInformation == NULL)
+   {
+      printf("Could not allocate memory for %s\n", input);
+      exit(1);
+   }
 
-   //    int numberOfThrows = getFirstIntFromInput(input, currentPosition, inputLength);
-   //    int lengthOfIntInChars = 0; // set to 0 due to above currentPosition++
+   parseTurns(game, turnsInformation, strlen(turnsInformation));
+   free(turnsInformation);
 
-   //    {
-   //       int temp = numberOfThrows;
-   //       while (temp >= 10)
-   //       {
-   //          temp /= 10;
-   //          lengthOfIntInChars++;
-   //       }
-   //    }
-
-   //    currentPosition += lengthOfIntInChars + 1; // skipping to first letter of colour
-   //    currentCharacter = input[currentPosition];
-
-   //    Turn turn;
-
-   //    while (!isEnd(currentCharacter))
-   //    {
-   //       updateTurnColor(&turn, currentCharacter, numberOfThrows);
-   //    }
-      
-
-   // }
-
-   
-
-   // i need to capture the number of thrown cubes
-   // i need to find which colour it is
-   // until I reach ;
-   // i need to store that turn into the game
-   // until I reach '\0'
-
-   return game.id;
+   if (validateGame(game))
+   {
+      int gameId = game->id;
+      deinitialiseGame(game);
+      return gameId;
+   }
+   return 0;
 }
 
 int main(int argc, char *argv[])
@@ -202,7 +340,7 @@ int main(int argc, char *argv[])
    while (fgets(line, sizeof(line), file))
    {
       const int lineLength = strlen(line);
-      sum += getIdFromPossibleGame(line, lineLength, &colours, coloursSize);
+      sum += getIdFromPossibleGame(line, lineLength, *colours, coloursSize);
    }
 
    printf("Sum is: %d", sum);
