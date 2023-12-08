@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall
 SRC = main.c
-OUT = day1part2.exe
+OUT = d1p2.exe
 
 all: $(OUT)
 
