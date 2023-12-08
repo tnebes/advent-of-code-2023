@@ -26,7 +26,6 @@ typedef struct
 
 typedef struct
 {
-   int id;
    Turn *turns;
 } Game;
 
@@ -231,7 +230,6 @@ Game *initialiseGame()
       exit(1);
    }
 
-   game->id = 0;
    game->turns = (Turn *)malloc(MAX_TURNS_IN_GAME * sizeof(Turn));
    for (int i = 0; i < MAX_TURNS_IN_GAME; i++)
    {
@@ -249,17 +247,34 @@ void deinitialiseGame(Game *game)
    free(game);
 }
 
-int validateGame(Game *game)
+int getPowerFromTurn(Game *game)
 {
+   int maxRed = 0;
+   int maxGreen = 0;
+   int maxBlue = 0;
    Turn *turns = game->turns;
+
    for (int i = 0; i < MAX_TURNS_IN_GAME; i++)
    {
-      if (turns[i].red > MAX_RED || turns[i].blue > MAX_BLUE || turns[i].green > MAX_GREEN)
+      int red = turns[i].red;
+      int green = turns[i].green;
+      int blue = turns[i].blue;
+
+      if (red > maxRed)
       {
-         return 0;
+         maxRed = red;
+      }
+      if (green > maxGreen)
+      {
+         maxGreen = green;
+      }
+      if (blue > maxBlue)
+      {
+         maxBlue = blue;
       }
    }
-   return 1;
+
+   return maxRed * maxGreen * maxBlue;
 }
 
 int getPowerFromGame(const char input[], const int inputLength)
@@ -277,7 +292,6 @@ int getPowerFromGame(const char input[], const int inputLength)
       exit(1);
    }
 
-   game->id = getFirstIntFromInput(input, 0, inputLength);
    int currentPosition = getPositionOfCharacter(input, 0, inputLength, ':') + 1;
    if (currentPosition < 0)
    {
@@ -295,13 +309,9 @@ int getPowerFromGame(const char input[], const int inputLength)
    parseTurns(game, turnsInformation, strlen(turnsInformation));
    free(turnsInformation);
 
-   if (validateGame(game))
-   {
-      int gameId = game->id;
-      deinitialiseGame(game);
-      return gameId;
-   }
-   return 0;
+   int power = getPowerFromTurn(game);
+   deinitialiseGame(game);
+   return power;
 }
 
 int main(int argc, char *argv[])
@@ -309,7 +319,7 @@ int main(int argc, char *argv[])
 
    if (argc < 2)
    {
-      printf("Usage: day2part1.exe path/to/input.txt\n");
+      printf("Usage: d2p2.exe path/to/input.txt\n");
       return 1;
    }
 
