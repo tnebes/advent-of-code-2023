@@ -306,7 +306,7 @@ int main(int argc, char *argv[])
 
    if (argc < 2)
    {
-      printf("Usage: day2part1.exe path/to/input.txt\n");
+      printf("Usage: d3p1.exe path/to/input.txt\n");
       return 1;
    }
 
