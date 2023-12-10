@@ -187,7 +187,7 @@ void populateLine(Line *line, const char *input)
    }
 }
 
-int hasSymbolHorizontally(const int position, const Line *currentLine)
+int hasNumberHorizontally(const int position, const Line *currentLine)
 {
    if (currentLine->symbols[position])
    {
@@ -204,7 +204,7 @@ int hasSymbolHorizontally(const int position, const Line *currentLine)
    return 0;
 }
 
-int hasSymbolVertically(const int position, Line *aboveLine, Line *currentLine, Line *belowLine)
+int hasNumberVertically(const int position, Line *aboveLine, Line *currentLine, Line *belowLine)
 {
    if (currentLine->symbols[position])
    {
@@ -221,25 +221,25 @@ int hasSymbolVertically(const int position, Line *aboveLine, Line *currentLine, 
    return 0;
 }
 
-int hasSymbolAround(const int position, Line *aboveLine, Line *currentLine, Line *belowLine)
+int getProductOfNumbersAroundSymbol(const int position, Line *aboveLine, Line *currentLine, Line *belowLine)
 {
    // up horizontally
-   if (aboveLine != NULL && hasSymbolHorizontally(position, aboveLine))
+   if (aboveLine != NULL && hasNumberHorizontally(position, aboveLine))
    {
       return 1;
    }
    // down horizontally
-   if (belowLine != NULL && hasSymbolHorizontally(position, belowLine))
+   if (belowLine != NULL && hasNumberHorizontally(position, belowLine))
    {
       return 1;
    }
    // left vertically
-   if (position > 0 && hasSymbolVertically(position - 1, aboveLine, currentLine, belowLine))
+   if (position > 0 && hasNumberVertically(position - 1, aboveLine, currentLine, belowLine))
    {
       return 1;
    }
    // right vertically
-   if (position < currentLine->length - 1 && hasSymbolVertically(position + 1, aboveLine, currentLine, belowLine))
+   if (position < currentLine->length - 1 && hasNumberVertically(position + 1, aboveLine, currentLine, belowLine))
    {
       return 1;
    }
@@ -281,7 +281,7 @@ int getSumFromLines(Line *lines[], const int numberOfLines)
 
          for (int k = 0; k < currentNumberLength; k++)
          {
-            if (hasSymbolAround(j + k, aboveLine, currentLine, belowLine))
+            if (getProductOfNumbersAroundSymbol(j + k, aboveLine, currentLine, belowLine))
             {
                printf("%d ", currentNumber);
                sum += currentNumber;

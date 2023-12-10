@@ -11,6 +11,13 @@ enum CharacterType
    SYMBOL
 };
 
+enum YPosition
+{
+   UP = -1,
+   SAME_LINE = 0,
+   DOWN = 1
+};
+
 typedef struct
 {
    int length;
@@ -85,19 +92,6 @@ int getFirstIntFromInput(const char input[], const int start, const int inputLen
       number += (foundDigits[i] - '0') * multiplicant;
    }
    return number;
-}
-
-int getPositionOfCharacter(const char input[], const int start, const int end, const char targetChar)
-{
-   for (int i = start; i < end; i++)
-   {
-      if (input[i] == targetChar)
-      {
-         return i;
-      }
-   }
-
-   return -1;
 }
 
 Line *initialiseLine(const int lineLength)
@@ -185,68 +179,81 @@ void populateLine(Line *line, const char *input)
    }
 }
 
-int hasSymbolHorizontally(const int position, const Line *currentLine)
+int getProductOfNumbersAroundSymbol(const int position, Line *aboveLine, Line *currentLine, Line *belowLine)
 {
-   if (currentLine->symbols[position])
-   {
-      return 1;
-   }
-   if (position > 0 && currentLine->symbols[position - 1])
-   {
-      return 1;
-   }
-   if (position < currentLine->length - 1 && currentLine->symbols[position + 1])
-   {
-      return 1;
-   }
-   return 0;
-}
+   Line *lines[] = {aboveLine, currentLine, belowLine};
+   const int linesLength = 3;
+   int foundNumbers[] = {0, 0};
+   int foundNumbersCount = 0;
+   int product = 0;
 
-int hasSymbolVertically(const int position, Line *aboveLine, Line *currentLine, Line *belowLine)
-{
-   if (currentLine->symbols[position])
-   {
-      return 1;
-   }
-   if (aboveLine != NULL && aboveLine->symbols[position])
-   {
-      return 1;
-   }
-   if (belowLine != NULL && belowLine->symbols[position])
-   {
-      return 1;
-   }
-   return 0;
-}
+   int foundNumber = 0;
 
-int hasSymbolAround(const int position, Line *aboveLine, Line *currentLine, Line *belowLine)
-{
-   // up horizontally
-   if (aboveLine != NULL && hasSymbolHorizontally(position, aboveLine))
+   for (int i = 0; i < linesLength; i++)
    {
-      return 1;
+      if (foundNumbersCount > 1)
+      {
+         break;
+      }
+
+      Line *searchLine = lines[i];
+      if (searchLine == NULL)
+      {
+         continue;
+      }
+
+      for (int j = -1; j < 2; j++)
+      {
+         if (position < 1 || position > currentLine->length)
+         {
+            continue;
+         }
+
+         foundNumber = searchLine->numbers[position + j];
+         if (foundNumber != 0 && foundNumber != foundNumbers[0])
+         {
+            foundNumbers[foundNumbersCount++] = foundNumber;
+         }
+
+         if (foundNumbersCount > 1)
+         {
+            break;
+         }
+      }
    }
-   // down horizontally
-   if (belowLine != NULL && hasSymbolHorizontally(position, belowLine))
+
+   if (foundNumbersCount > 1)
    {
-      return 1;
+      product = foundNumbers[0] * foundNumbers[1];
    }
-   // left vertically
-   if (position > 0 && hasSymbolVertically(position - 1, aboveLine, currentLine, belowLine))
-   {
-      return 1;
-   }
-   // right vertically
-   if (position < currentLine->length - 1 && hasSymbolVertically(position + 1, aboveLine, currentLine, belowLine))
-   {
-      return 1;
-   }
-   return 0;
+
+   return product;
 }
 
 int getSumFromLines(Line *lines[], const int numberOfLines)
 {
    int sum = 0;
+   for (int i = 0; i < numberOfLines; i++)
+   {
+      Line *currentLine = lines[i];
+      Line *aboveLine = NULL;
+      Line *belowLine = NULL;
+      if (i > 0)
+      {
+         aboveLine = lines[i - 1];
+      }
+      if (i < numberOfLines)
+      {
+         belowLine = lines[i + 1];
+      }
+      for (int j = 0; j < currentLine->length; j++)
+      {
+         if (currentLine->symbols[j])
+         {
+            sum += getProductOfNumbersAroundSymbol(j, aboveLine, currentLine, belowLine);
+         }
+      }
+   }
    return sum;
 }
 
@@ -287,9 +294,9 @@ int main(int argc, char *argv[])
       lines[counter++] = parseLine(line, lineLength);
    }
 
-   int sum = getSumFromLines(lines, counter);
+   long sum = getSumFromLines(lines, counter);
 
-   printf("Sum is: %d", sum);
+   printf("Sum is: %ld", sum);
    freeLines(lines, counter);
    return 0;
 }
