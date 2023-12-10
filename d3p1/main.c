@@ -1,3 +1,5 @@
+// forgive me Dennis Ritchie for this
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -11,8 +13,9 @@ enum CharacterType
    SYMBOL
 };
 
-typedef struct {
-   int lineLength;
+typedef struct
+{
+   int length;
    int *numbers;
    int *symbols;
 } Line;
@@ -22,14 +25,19 @@ int isDigit(const char character)
    return (character >= '0' && character <= '9');
 }
 
-int isSymbol(const char character)
-{
-   return (character != '.' && !isDigit(character));
-}
-
 int isEmptySpace(const char character)
 {
    return character == '.';
+}
+
+int isSymbol(const char character)
+{
+   return (!isEmptySpace(character) && !isDigit(character));
+}
+
+int isEnd(const char character)
+{
+   return (character == '\0' || character == '\n');
 }
 
 int classifyCharacter(const char character)
@@ -104,10 +112,10 @@ Line *initialiseLine(const int lineLength)
       exit(1);
    }
 
-   line->lineLength = lineLength;
+   line->length = lineLength;
    line->numbers = malloc(sizeof(int) * lineLength);
    line->symbols = malloc(sizeof(int) * lineLength);
-   
+
    for (int i = 0; i < lineLength; i++)
    {
       line->numbers[i] = 0;
@@ -124,7 +132,7 @@ void freeLine(Line *line)
    free(line);
 }
 
-void freeLines(Line* lines[], const int numberOfLines)
+void freeLines(Line *lines[], const int numberOfLines)
 {
    for (int i = 0; i < numberOfLines; i++)
    {
@@ -143,45 +151,153 @@ int getLengthOfNumber(int number)
    return counter;
 }
 
-void populateLine(Line *line, const char* input, const int inputLength)
+void populateLine(Line *line, const char *input)
 {
+   const int inputLength = line->length;
    int currentCharacterPosition = 0;
    char currentCharacter = input[currentCharacterPosition];
-   while (!(currentCharacter == '\0' || currentCharacter == '\n'))
+   while (!isEnd(currentCharacter))
    {
-      switch(classifyCharacter(currentCharacter))
+      switch (classifyCharacter(currentCharacter))
       {
          int number;
          int numberLength;
          int targetPosition;
-         case EMPTY_SPACE:
-            currentCharacter = input[++currentCharacterPosition];
-            break;
-         case DIGIT:
-            number = getFirstIntFromInput(input, currentCharacterPosition, inputLength);
-            numberLength = getLengthOfNumber(number);
-            targetPosition = currentCharacterPosition + numberLength;
-            while (currentCharacterPosition < targetPosition)
-            {
-               line->numbers[currentCharacterPosition++] = number;
-            }
-            currentCharacter = input[++currentCharacterPosition];
-            break;
-         case SYMBOL:
-            line->symbols[currentCharacterPosition] = 1;
-            currentCharacter = input[++currentCharacterPosition];
-            break;
-         default:
-            printf("Could not classify character %c\n", currentCharacter);
-            exit(1);
+      case EMPTY_SPACE:
+         currentCharacter = input[++currentCharacterPosition];
+         break;
+      case DIGIT:
+         number = getFirstIntFromInput(input, currentCharacterPosition, inputLength);
+         numberLength = getLengthOfNumber(number);
+         targetPosition = currentCharacterPosition + numberLength;
+         while (currentCharacterPosition < targetPosition)
+         {
+            line->numbers[currentCharacterPosition++] = number;
+         }
+         currentCharacter = input[currentCharacterPosition];
+         break;
+      case SYMBOL:
+         line->symbols[currentCharacterPosition++] = 1;
+         currentCharacter = input[currentCharacterPosition];
+         break;
+      default:
+         printf("Could not classify character %c\n", currentCharacter);
+         exit(1);
       }
    }
 }
 
-Line *parseLine(const char* input, const int inputLength)
+int hasSymbolHorizontally(const int position, const Line *currentLine)
+{
+   if (currentLine->symbols[position])
+   {
+      return 1;
+   }
+   if (position > 0 && currentLine->symbols[position - 1])
+   {
+      return 1;
+   }
+   if (position < currentLine->length - 1 && currentLine->symbols[position + 1])
+   {
+      return 1;
+   }
+   return 0;
+}
+
+int hasSymbolVertically(const int position, Line *aboveLine, Line *currentLine, Line *belowLine)
+{
+   if (currentLine->symbols[position])
+   {
+      return 1;
+   }
+   if (aboveLine != NULL && aboveLine->symbols[position])
+   {
+      return 1;
+   }
+   if (belowLine != NULL && belowLine->symbols[position])
+   {
+      return 1;
+   }
+   return 0;
+}
+
+int hasSymbolAround(const int position, Line *aboveLine, Line *currentLine, Line *belowLine)
+{
+   // up horizontally
+   if (aboveLine != NULL && hasSymbolHorizontally(position, aboveLine))
+   {
+      return 1;
+   }
+   // down horizontally
+   if (belowLine != NULL && hasSymbolHorizontally(position, belowLine))
+   {
+      return 1;
+   }
+   // left vertically
+   if (position > 0 && hasSymbolVertically(position - 1, aboveLine, currentLine, belowLine))
+   {
+      return 1;
+   }
+   // right vertically
+   if (position < currentLine->length - 1 && hasSymbolVertically(position + 1, aboveLine, currentLine, belowLine))
+   {
+      return 1;
+   }
+   return 0;
+}
+
+int getSumFromLines(Line *lines[], const int numberOfLines)
+{
+   int sum = 0;
+   for (int i = 0; i < numberOfLines; i++)
+   {
+      printf("\n");
+      Line *currentLine = lines[i];
+      Line *aboveLine = NULL;
+      Line *belowLine = NULL;
+      int *currentNumbers = currentLine->numbers;
+      if (i > 0)
+      {
+         aboveLine = lines[i - 1];
+      }
+      if (i < numberOfLines)
+      {
+         belowLine = lines[i + 1];
+      }
+
+      for (int j = 0; j < currentLine->length; j++)
+      {
+         if (currentNumbers[j] == 0)
+         {
+            continue;
+         }
+         int currentNumber = currentNumbers[j];
+         int currentNumberLength = getLengthOfNumber(currentNumber);
+
+         if (currentNumber == 438)
+         {
+            printf(" ");
+         }
+
+         for (int k = 0; k < currentNumberLength; k++)
+         {
+            if (hasSymbolAround(j + k, aboveLine, currentLine, belowLine))
+            {
+               printf("%d ", currentNumber);
+               sum += currentNumber;
+               break;
+            }
+         }
+         j += currentNumberLength - 1; // stupid magic
+      }
+   }
+   return sum;
+}
+
+Line *parseLine(const char *input, const int inputLength)
 {
    Line *line = initialiseLine(inputLength);
-   populateLine(line, input, inputLength);
+   populateLine(line, input);
    return line;
 }
 
@@ -205,9 +321,8 @@ int main(int argc, char *argv[])
       return 1;
    }
 
-   int sum = 0;
    char line[1024];
-   Line *lines[MAX_LINES];
+   Line *lines[MAX_LINES] = {NULL};
    int counter = 0;
 
    while (fgets(line, sizeof(line), file))
@@ -215,6 +330,8 @@ int main(int argc, char *argv[])
       const int lineLength = strlen(line);
       lines[counter++] = parseLine(line, lineLength);
    }
+
+   int sum = getSumFromLines(lines, counter);
 
    printf("Sum is: %d", sum);
    freeLines(lines, counter);
